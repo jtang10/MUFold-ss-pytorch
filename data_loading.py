@@ -3,10 +3,6 @@ import torch
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
 
-SetOf7604Proteins_path = '../data/SetOf7604Proteins/'
-trainList_addr = 'trainList'
-validList_addr = 'validList'
-testList_addr = 'testList'
 
 class Protein_Dataset(Dataset):
     def __init__(self, relative_path, datalist_addr, max_seq_len=300, padding=True, feature_size=66):
@@ -66,11 +62,23 @@ class Protein_Dataset(Dataset):
         return protein_features, protein_labels
 
 if __name__ == '__main__':
-    protein_dataset = Protein_Dataset(SetOf7604Proteins_path, trainList_addr, max_seq_len=350, padding=True)
-    dataloader = DataLoader(protein_dataset, batch_size=1, shuffle=False, num_workers=4)
+    SetOf7604Proteins_path = '../data/SetOf7604Proteins/'
+    trainList_addr = 'trainList'
+    validList_addr = 'validList'
+    testList_addr = 'testList'
 
-    for i_batch, sample_batched in enumerate(dataloader):
-        features, labels = sample_batched
-        print(features.size())
-        print(labels.size())
-        break
+    protein_dataset = Protein_Dataset(SetOf7604Proteins_path, validList_addr, max_seq_len=350, padding=True)
+    dataloader = DataLoader(protein_dataset, batch_size=64, shuffle=False, num_workers=4)
+
+    counter_list = []
+    for epoch in range(2):
+        step_counter = 0
+        for i, sample_batched in enumerate(dataloader):
+            features, labels = sample_batched
+            step_counter += features.size()[0]
+            counter_list.append(step_counter + epoch * len(protein_dataset))
+            # print(features.size())
+            # print(labels.size())
+    print(counter_list)
+    plt.plot(counter_list, counter_list)
+    plt.show()
