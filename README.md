@@ -13,7 +13,9 @@ links provided in the paper to download the Cullpdb data. Modify `data_loading.p
 
 ## To do 
 * Improve the argparse and file management in model.py.
+  * Now max_seq_len for training data, learning rate, epochs, batch size, etc. can be controlled by command-line.
 * Properly set up saving and restoring of the model.
+  * Saving the best model based on validation accuracy for each model
 * Try out different hyperparameters and optimizers.
 
 ## Misc
