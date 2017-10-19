@@ -34,13 +34,13 @@ class basic_inception_module(nn.Module):
         return torch.cat([branch1, branch2, branch3], 1)
 
 class Deep3I(nn.Module):
-    def __init__(self, in_channels, **kwargs):
+    def __init__(self, in_channels, dropout, **kwargs):
         super(Deep3I, self).__init__()
         self.input_layers = nn.ModuleList(
             [basic_inception_module(in_channels) for i in range(3)])
         self.intermediate_layers = nn.ModuleList(
             [basic_inception_module(300) for i in range(4)])
-        self.dropout = nn.Dropout(0.4)
+        self.dropout = nn.Dropout(dropout)
         
 
     def forward(self, x):
@@ -54,10 +54,10 @@ class Deep3I(nn.Module):
         return output
 
 class MUFold_ss(nn.Module):
-    def __init__(self):
+    def __init__(self, dropout=0.4):
         super(MUFold_ss, self).__init__()
-        self.layer1 = Deep3I(66)
-        self.layer2 = Deep3I(900)
+        self.layer1 = Deep3I(66, dropout)
+        self.layer2 = Deep3I(900, dropout)
         self.fc = nn.Sequential(nn.Linear(900, 400), nn.Linear(400, 8))
 
     def forward(self, x):

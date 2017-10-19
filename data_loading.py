@@ -1,8 +1,9 @@
 from __future__ import print_function, division
+import time
 import torch
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
-
+from torch.autograd import Variable
 
 class Protein_Dataset(Dataset):
     def __init__(self, relative_path, datalist_addr, max_seq_len=300, padding=True, feature_size=66):
@@ -19,8 +20,8 @@ class Protein_Dataset(Dataset):
 
     def __getitem__(self, idx):
         protein_name = self.protein_list[idx]
-        features, labels = self.read_protein(protein_name, self.relative_path, self.max_seq_len, self.padding)
-        return torch.from_numpy(features).double(), torch.from_numpy(labels)
+        features, labels, length = self.read_protein(protein_name, self.relative_path, self.max_seq_len, self.padding)
+        return torch.from_numpy(features).float(), torch.from_numpy(labels).long(), length
 
     def read_list(self, filename):
         """Given the filename storing all protein names, return a list of protein names.
@@ -46,11 +47,14 @@ class Protein_Dataset(Dataset):
                     # 0 means the current ss label exists.
                     protein_labels.append(self.dict_ss[line[3]])
         protein_labels = np.array(protein_labels)
+        # print(protein_labels.shape)
+        protein_length = protein_labels.shape[0]
         if padding:
             # if features passes max_seq_len, cutoff
             if protein_features.shape[0] >= max_seq_len:
                 protein_features = protein_features[:max_seq_len, :]
                 protein_labels = protein_labels[:max_seq_len]
+                protein_length = max_seq_len
             # else, zero-pad to max_seq_len
             else:
                 padding_length = max_seq_len - protein_features.shape[0]
@@ -58,27 +62,28 @@ class Protein_Dataset(Dataset):
                                           'constant', constant_values=((0, 0), (0, 0)))
                 protein_labels = np.pad(protein_labels, (0, padding_length), 'constant', constant_values=(0, 0))
 
-        protein_features = protein_features.transpose()
-        return protein_features, protein_labels
+        return protein_features, protein_labels, protein_length
 
 if __name__ == '__main__':
+    from operator import mul
+    from functools import reduce
     SetOf7604Proteins_path = '../data/SetOf7604Proteins/'
     trainList_addr = 'trainList'
     validList_addr = 'validList'
     testList_addr = 'testList'
 
-    protein_dataset = Protein_Dataset(SetOf7604Proteins_path, validList_addr, max_seq_len=350, padding=True)
-    dataloader = DataLoader(protein_dataset, batch_size=64, shuffle=False, num_workers=4)
+    protein_dataset = Protein_Dataset(SetOf7604Proteins_path, testList_addr, max_seq_len=698, padding=False)
+    dataloader = DataLoader(protein_dataset, batch_size=1, shuffle=False, num_workers=4)
 
-    counter_list = []
-    for epoch in range(2):
-        step_counter = 0
-        for i, sample_batched in enumerate(dataloader):
-            features, labels = sample_batched
-            step_counter += features.size()[0]
-            counter_list.append(step_counter + epoch * len(protein_dataset))
-            # print(features.size())
-            # print(labels.size())
-    print(counter_list)
-    plt.plot(counter_list, counter_list)
-    plt.show()
+    start = time.time()
+    size1 = 0
+    size2 = 0
+    for i, sample_batched in enumerate(dataloader):
+        features, labels, lengths = sample_batched
+        max_length = max(lengths.numpy())
+        features = Variable(features[:, :, :max_length])
+        print(type(features.data))
+        labels = Variable(labels[:, :max_length])
+        size2 += reduce(mul, features.size())
+        break
+    print("Spent {:.3f}s".format(time.time() - start))
