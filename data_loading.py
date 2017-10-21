@@ -61,8 +61,7 @@ class Protein_Dataset(Dataset):
                 protein_features = np.pad(protein_features, ((0, padding_length), (0, 0)),
                                           'constant', constant_values=((0, 0), (0, 0)))
                 protein_labels = np.pad(protein_labels, (0, padding_length), 'constant', constant_values=(0, 0))
-
-        return protein_features, protein_labels, protein_length
+        return protein_features.transpose(), protein_labels, protein_length
 
 if __name__ == '__main__':
     from operator import mul

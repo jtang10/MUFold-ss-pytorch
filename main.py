@@ -16,8 +16,10 @@ from tensorboardX import SummaryWriter
 
 from data_loading import Protein_Dataset
 from model import MUFold_ss
+from dense_net import DenseNet
 
 parser = argparse.ArgumentParser(description='PyTorch implementation of Mufold-ss paper')
+parser.add_argument('model', choices=['mufold', 'densenet'], help='choose model between mufold and densenet')
 parser.add_argument('--run', default='exp_test', metavar='DIR', help='directory to save the summary and model')
 parser.add_argument('-e', '--epochs', default=15, type=int, metavar='N', help='number of epochs to run (default: 15)')
 parser.add_argument('-b', '--batch_size', default=64, type=int, metavar='N', help='batch size of training data (default: 64)')
@@ -33,9 +35,12 @@ args = parser.parse_args()
 
 use_cuda = torch.cuda.is_available()
 
-SetOf7604Proteins_path = os.path.expanduser('~/bio/data/SetOf7604Proteins/')
-CASP11_path = os.path.expanduser('~/bio/data/CASP11/')
-CASP12_path = os.path.expanduser('~/bio/data/CASP12/')
+SetOf7604Proteins_path = os.path.expanduser('../data/SetOf7604Proteins/')
+CASP11_path = os.path.expanduser('../data/CASP11/')
+CASP12_path = os.path.expanduser('../data/CASP12/')
+# SetOf7604Proteins_path = os.path.expanduser('~/bio/data/SetOf7604Proteins/')
+# CASP11_path = os.path.expanduser('~/bio/data/CASP11/')
+# CASP12_path = os.path.expanduser('~/bio/data/CASP12/')
 trainList_addr = 'trainList'
 validList_addr = 'validList'
 testList_addr = 'testList'
@@ -101,7 +106,10 @@ def evaluate(cnn, dataloader):
 
 
 writer = SummaryWriter(log_dir=writer_path)
-cnn = MUFold_ss(dropout=args.dropout)
+if args.model == 'mufold':
+    cnn = MUFold_ss(dropout=args.dropout)
+else:
+    cnn = DenseNet(drop_rate=args.dropout)
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(cnn.parameters(), lr=args.lr)
 # optimizer = torch.optim.SGD(cnn.parameters(), lr=args.lr, momentum=0.9, nesterov=True)
@@ -128,7 +136,7 @@ for epoch in range(args.epochs):
         labels = cuda_var_wrapper(labels[:, :max_length])
         output = cnn(features)
         optimizer.zero_grad()
-        loss = criterion(output.view(-1, 8), labels.view(-1))
+        loss = criterion(output.contiguous().view(-1, 8), labels.contiguous().view(-1))
         step_counter += features.size()[0]
         writer.add_scalar('data/loss', loss.data[0], step_counter + epoch * len_train_dataset)
         loss.backward()
@@ -149,11 +157,20 @@ for epoch in range(args.epochs):
     print("Training accuracy {:.4f}; Validation accuracy {:.4f}".format(accuracy_train, accuracy_valid))
 
 print("Time spent on training: {:.2f}s".format(time.time() - start))
-# writer.export_scalars_to_json("./all_scalars.json")
+torch.save(cnn.state_dict(), model_path + '_2')
 writer.close()
 
 # Test set accuracy. Restore the best saved model instead of use the trained.
 cnn.load_state_dict(torch.load(model_path))
+accuracy_test = evaluate(cnn, test_loader)
+accuracy_CASP11 = evaluate(cnn, CASP11_loader)
+accuracy_CASP12 = evaluate(cnn, CASP12_loader)
+print("Test accuracy {:.3f}".format(accuracy_test))
+print("CASP11 accuracy {:.3f}".format(accuracy_CASP11))
+print("CASP12 accuracy {:.3f}".format(accuracy_CASP12))
+
+# Test set accuracy. Restore the best saved model instead of use the trained.
+cnn.load_state_dict(torch.load(model_path + '_2'))
 accuracy_test = evaluate(cnn, test_loader)
 accuracy_CASP11 = evaluate(cnn, CASP11_loader)
 accuracy_CASP12 = evaluate(cnn, CASP12_loader)

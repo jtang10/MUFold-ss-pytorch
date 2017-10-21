@@ -49,7 +49,7 @@ class Deep3I(nn.Module):
         branch3 = self.input_layers[2](x)
         for i in range(1, 4):
             branch3 = self.intermediate_layers[i](branch3)
-        output = torch.cat([branch1, branch2, branch3], 1)
+        output = torch.cat([branch1, branch2, branch3, x], 1)
         output = self.dropout(output)
         return output
 
